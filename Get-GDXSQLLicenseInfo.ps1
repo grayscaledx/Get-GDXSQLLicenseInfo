@@ -8,22 +8,38 @@
     BEGIN {
     
         $collection = @()
+        $sqlNamespace = "ROOT\Microsoft\SqlServer"
 
     }
 
     PROCESS {
     
-        foreach($c in $ComputerName){
+        foreach ($c in $ComputerName){
             
             try {
 
-                $SQLNameSpaces = Get-WmiObject -Namespace ROOT\Microsoft\SqlServer -Class __NAMESPACE -ComputerName $c
-                Write-Output $SQLNameSpaces
+                $SQLNameSpaces = Get-WmiObject -Namespace $sqlNameSpace -Class __NAMESPACE -ComputerName $c
 
-                foreach ($cmclass in $(($SQLNameSpaces.Name) -match "ComputerManagement")){
+                foreach ($sqlInstalledNamespace in $(($SQLNameSpaces.Name) -match "ComputerManagement")){
                 
-                    $cmquery = Get-WmiObject -Namespace ($cmclass.__NAMESPACE)\($cmclass.Name) -Class SqlServiceAdvancedProperty   
-                    $collection += $cmquery  
+                    $sqlWMIInstances = Get-WmiObject -Namespace $sqlNamespace\$sqlInstalledNamespace -Class SqlServiceAdvancedProperty
+                    foreach ($sqlInfo in $sqlWMIInstances){
+                    
+                        if ($sqlInfo.PropertyName -match "SKUNAME") {
+
+                            $props = @{
+                                        'ComputerName' = $c
+                                        'PSComputerName' = $sqlInfo.PSComputerName
+                                        'SQLEdition' = $sqlInfo.PropertyStrValue
+                                        'ServiceName' = $sqlInfo.ServiceName
+                            }
+
+                            $obj = New-Object -TypeName psobject -Property $props
+                            $collection += $obj
+                        
+                        }
+
+                    }
                 
                 }
 
